@@ -1,11 +1,11 @@
-#include <QCoreApplication>
-#include <QCommandLineParser>
 #include <QCommandLineOption>
+#include <QCommandLineParser>
+#include <QCoreApplication>
 #include <QDebug>
+
 #include "MasterServer.h"
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     QCoreApplication::setApplicationName("dfs-master");
     QCoreApplication::setApplicationVersion("1.0");
@@ -33,10 +33,10 @@ int main(int argc, char *argv[])
     }
 
     MasterServer server;
-    // if (!server.startListening(QHostAddress::Any, port)) {
-    //     qCritical() << "Failed to start master server on port" << port;
-    //     return 1;
-    // }
+    if (!server.startListening(QHostAddress::Any, port)) {
+        qCritical() << "Failed to start master server on port" << port;
+        return 1;
+    }
 
     qInfo() << "Master server is running on port" << port;
     return app.exec();
