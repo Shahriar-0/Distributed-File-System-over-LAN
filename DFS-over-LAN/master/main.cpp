@@ -1,19 +1,43 @@
 #include <QCoreApplication>
+#include <QCommandLineParser>
+#include <QCommandLineOption>
+#include <QDebug>
+#include "MasterServer.h"
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication a(argc, argv);
+    QCoreApplication app(argc, argv);
+    QCoreApplication::setApplicationName("dfs-master");
+    QCoreApplication::setApplicationVersion("1.0");
 
-    // Set up code that uses the Qt event loop here.
-    // Call a.quit() or a.exit() to quit the application.
-    // A not very useful example would be including
-    // #include <QTimer>
-    // near the top of the file and calling
-    // QTimer::singleShot(5000, &a, &QCoreApplication::quit);
-    // which quits the application after 5 seconds.
+    QCommandLineParser parser;
+    parser.setApplicationDescription("Distributed File System Master Server");
+    parser.addHelpOption();
+    parser.addVersionOption();
 
-    // If you do not need a running Qt event loop, remove the call
-    // to a.exec() or use the Non-Qt Plain C++ Application template.
+    QCommandLineOption portOption(
+        QStringList() << "p" << "port",
+        "Port on which the master server will listen (default: 4000).",
+        "port",
+        "4000"
+    );
+    parser.addOption(portOption);
 
-    return a.exec();
+    parser.process(app);
+
+    bool ok;
+    quint16 port = parser.value(portOption).toUShort(&ok);
+    if (!ok) {
+        qCritical() << "Invalid port number provided.";
+        return 1;
+    }
+
+    MasterServer server;
+    // if (!server.startListening(QHostAddress::Any, port)) {
+    //     qCritical() << "Failed to start master server on port" << port;
+    //     return 1;
+    // }
+
+    qInfo() << "Master server is running on port" << port;
+    return app.exec();
 }

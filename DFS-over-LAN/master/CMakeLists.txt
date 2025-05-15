@@ -14,6 +14,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 
 add_executable(master
   main.cpp
+  masterserver.h masterserver.cpp
 )
 target_link_libraries(master Qt${QT_VERSION_MAJOR}::Core)
 
