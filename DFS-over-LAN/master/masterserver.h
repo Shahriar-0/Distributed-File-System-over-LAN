@@ -13,6 +13,10 @@ using ChunkID = QString;
 struct ChunkServerInfo {
     QString ip;
     quint16 port;
+
+    bool operator==(const ChunkServerInfo& other) const {
+        return ip == other.ip && port == other.port;
+    }
 };
 
 struct ChunkInfo {
