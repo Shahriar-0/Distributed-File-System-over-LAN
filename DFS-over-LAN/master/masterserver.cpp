@@ -31,6 +31,7 @@ void MasterServer::onReadyRead() {
 
     while (client->canReadLine()) {
         QByteArray data = client->readLine().trimmed();
+        qDebug() << "Received data from client:" << data;
         handleRequest(client, data);
     }
 }
