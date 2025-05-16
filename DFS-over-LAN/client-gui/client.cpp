@@ -1,4 +1,6 @@
 #include "Client.h"
+#include <QJsonDocument>
+#include <QJsonObject>
 
 Client::Client(const QHostAddress& serverAddress, quint16 serverPort, QObject* parent)
     : QObject(parent),
@@ -17,10 +19,16 @@ Client::~Client() {
     m_socket->deleteLater();
 }
 
-void Client::sendCommand(const QString& command) {
-    if (m_connected) {
-        m_socket->write(command.toUtf8() + "\n");
-    } else {
+void Client::sendCommand(const QString& command, const QString& params) {
+    QJsonObject json;
+    json["command"] = command;
+    json["params"] = params;
+    QJsonDocument doc(json);
+    QByteArray data = doc.toJson(QJsonDocument::Compact);
+    if (m_socket->state() == QAbstractSocket::ConnectedState) {
+        m_socket->write(data + "\n");
+    }
+    else {
         emit errorOccurred("Not connected to server");
     }
 }

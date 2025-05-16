@@ -18,11 +18,16 @@ Window {
         }
 
         RowLayout {
+            ComboBox {
+                id: commandCombo
+                model: ["LOOKUP_FILE", "ALLOCATE_CHUNKS", "REGISTER_CHUNK_REPLICA"]
+                Layout.preferredWidth: 150
+            }
+
             TextField {
-                id: commandInput
-                placeholderText: "Enter command"
+                id: paramsInput
+                placeholderText: "Enter parameters"
                 Layout.fillWidth: true
-                enabled: false
             }
 
             Button {
@@ -30,8 +35,8 @@ Window {
                 text: "Send"
                 enabled: false
                 onClicked: {
-                    client.sendCommand(commandInput.text)
-                    commandInput.clear()
+                    client.sendCommand(commandCombo.currentText, paramsInput.text)
+                    paramsInput.clear()
                 }
             }
         }
@@ -61,13 +66,11 @@ Window {
         function onConnectionStateChanged(connected) {
             if (connected) {
                 statusLabel.text = "Connected"
-                commandInput.enabled = true
                 sendButton.enabled = true
                 textArea.append("Connected to server")
             }
             else {
                 statusLabel.text = "Disconnected"
-                commandInput.enabled = false
                 sendButton.enabled = false
                 textArea.append("Disconnected from server")
             }

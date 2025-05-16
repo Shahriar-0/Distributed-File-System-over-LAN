@@ -7,14 +7,11 @@
 
 class Client : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool connected READ isConnected NOTIFY connectionStateChanged)
-
 public:
     explicit Client(const QHostAddress& serverAddress, quint16 serverPort, QObject* parent = nullptr);
     ~Client();
 
-    Q_INVOKABLE void sendCommand(const QString& command);
-    bool isConnected() const { return m_connected; }
+    Q_INVOKABLE void sendCommand(const QString& command, const QString& params);
 
 signals:
     void responseReceived(const QString& response);
