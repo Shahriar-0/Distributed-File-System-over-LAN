@@ -1,9 +1,14 @@
 #ifndef MASTERSERVER_H
 #define MASTERSERVER_H
 
+#include <QHash>
 #include <QList>
-#include <QMap>
+#include <QSet>
 #include <QTcpServer>
+#include <QTcpSocket>
+
+using FileID = QString;
+using ChunkID = QString;
 
 struct ChunkServerInfo {
     QString ip;
@@ -11,12 +16,12 @@ struct ChunkServerInfo {
 };
 
 struct ChunkInfo {
-    QString chunkId;
-    QList<ChunkServerInfo> locations; // for replication and fault tolerance and balancing and shits like that
+    ChunkID chunkId;
+    QList<ChunkServerInfo> locations; // for replication and fault tolerance
 };
 
 struct FileMetadata {
-    QString fileName;
+    FileID fileName;
     QList<ChunkInfo> chunks;
 };
 
@@ -26,16 +31,19 @@ public:
     explicit MasterServer(QObject* parent = nullptr);
     bool startListening(const QHostAddress& address, quint16 port);
 
-protected:
-    void incomingConnection(qintptr socketDescriptor) override;
-
 private slots:
+    void onNewConnection();
     void onReadyRead();
     void onDisconnected();
 
 private:
-    QMap<QString, FileMetadata> fileMetadata;
-    QMap<QTcpSocket*, ChunkServerInfo> chunkServerMap;
+    QSet<QTcpSocket*> m_clients;
+    QHash<FileID, FileMetadata> fileMetadata;
+
+    void handleRequest(QTcpSocket* client, const QByteArray& data);
+    void allocateChunks(QTcpSocket* client, const QString& fileId, qint64 size);
+    void lookupFile(QTcpSocket* client, const QString& fileId);
+    void registerChunkReplica(const QString& chunkId, const QString& addr, quint16 port);
 };
 
 #endif // MASTERSERVER_H
