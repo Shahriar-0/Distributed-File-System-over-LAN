@@ -20,7 +20,7 @@ class ChunkServer : public QObject {
     Q_OBJECT
 public:
     explicit ChunkServer(int serverId, const QHostAddress& localIp,
-                         const QMap<int, QList<int>>& tree, QObject* parent = nullptr);
+                         const QVector<int>& dfsOrder, QObject* parent = nullptr);
     void start();
 
 private slots:
@@ -31,13 +31,9 @@ private:
     QString storageDir;
     QUdpSocket* udpSocket;
     QHostAddress localIp;
-
-    QMap<int, QList<int>> chunkServerTree;
+    QMap<QString, ChunkMetadata> storedChunks;
 
     QVector<int> dfsOrder;
-    QVector<int> dfsResult;
-
-    void computeDFS(int node);
 
     int getNextChunkServerId(int currentId);
     QHostAddress getNextChunkServerAddress(int nextId);

@@ -5,8 +5,8 @@
 #include <QDebug>
 
 ChunkServer::ChunkServer(int serverId, const QHostAddress& localIp,
-                         const QMap<int, QList<int>>& tree, QObject* parent)
-    : QObject(parent), serverId(serverId), localIp(localIp), chunkServerTree(tree) {
+                         const QVector<int>& dfsOrder, QObject* parent)
+    : QObject(parent), serverId(serverId), localIp(localIp), dfsOrder(dfsOrder) {
     storageDir = QString("./CHUNK-%1").arg(serverId);
     QDir dir(storageDir);
     if (!dir.exists()) {
@@ -14,18 +14,7 @@ ChunkServer::ChunkServer(int serverId, const QHostAddress& localIp,
     }
 
     udpSocket = new QUdpSocket(this);
-
-    dfsResult.clear();
-    computeDFS(0);
-    dfsOrder = dfsResult;
-    qInfo() << "ChunkServer" << serverId << "DFS order:" << dfsOrder;
-}
-
-void ChunkServer::computeDFS(int node) {
-    dfsResult.append(node);
-    for (int child : chunkServerTree[node]) {
-        computeDFS(child);
-    }
+    qInfo() << "ChunkServer" << serverId << "Initialized";
 }
 
 int ChunkServer::getNextChunkServerId(int currentId) {
