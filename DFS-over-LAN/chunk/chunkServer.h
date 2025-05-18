@@ -9,7 +9,7 @@
 #include <QVector>
 #include <QList>
 
-static const quint16 BASE_CHUNK_PORT = 50000;
+static const quint16 BASE_CHUNK_PORT = 5000;
 
 struct ChunkMetadata {
     QString chunkId;
