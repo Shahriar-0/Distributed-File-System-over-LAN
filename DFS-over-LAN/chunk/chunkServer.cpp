@@ -6,7 +6,7 @@
 
 ChunkServer::ChunkServer(int serverId, const QHostAddress& localIp,
                          const QVector<int>& dfsOrder, QObject* parent)
-    : QObject(parent), serverId(serverId), localIp(localIp), dfsOrder(dfsOrder) {
+    : QObject(parent), serverId(serverId + BASE_CHUNK_PORT), localIp(localIp), dfsOrder(dfsOrder) {
     storageDir = QString("./CHUNK-%1").arg(serverId);
     QDir dir(storageDir);
     if (!dir.exists()) {

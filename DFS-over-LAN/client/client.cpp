@@ -65,7 +65,8 @@ void Client::processCommand(const QString& command) {
         m_numChunks    = int((m_fileSize + CHUNK_SIZE - 1) / CHUNK_SIZE);
         m_currentChunk = 0;
         m_nextChunkIp   = QHostAddress::LocalHost;
-        m_nextChunkPort = 0;
+        m_nextChunkPort = BASE_CHUNK_PORT + 0;
+
 
         QString req = QString("ALLOCATE_CHUNKS %1 %2\n").arg(m_fileId).arg(m_fileSize);
         m_socket->write(req.toUtf8());
@@ -148,41 +149,42 @@ void Client::sendCurrentChunk() {
 
 void Client::onUdpReadyRead() {
     while (m_udpSocket->hasPendingDatagrams()) {
-        QByteArray dg;
-        dg.resize(int(m_udpSocket->pendingDatagramSize()));
-        QHostAddress sender;
-        quint16 senderPort;
-        m_udpSocket->readDatagram(dg.data(), dg.size(), &sender, &senderPort);
-
-        QDataStream in(&dg, QIODevice::ReadOnly);
-        in.setVersion(QDataStream::Qt_5_12);
-
-        quint8 opCode;
-        in >> opCode;
-        if (opCode != OPCODE_ACK) {
-            qWarning() << "Unexpected UDP opcode:" << opCode;
+        qint64 sz = m_udpSocket->pendingDatagramSize();
+        if (sz < 2) {
+            QByteArray junk; junk.resize(int(sz));
+            m_udpSocket->readDatagram(junk.data(), junk.size());
+            qDebug() << "Dropped undersized UDP datagram of" << sz << "bytes";
             continue;
         }
 
-        quint8 cidLen;
-        in >> cidLen;
+        QByteArray dg; dg.resize(int(sz));
+        QHostAddress sender; quint16 senderPort;
+        m_udpSocket->readDatagram(dg.data(), dg.size(), &sender, &senderPort);
+
+        quint8 op = static_cast<quint8>(dg.at(0));
+        if (op != OPCODE_ACK) {
+            qDebug() << "Ignoring non-ACK datagram (opcode =" 
+                     << op << "), payload =" << dg.toHex();
+            continue;
+        }
+
+        QDataStream in(&dg, QIODevice::ReadOnly);
+        in.setVersion(QDataStream::Qt_5_12);
+        quint8 dummy; quint8 cidLen;
+        in >> dummy >> cidLen;
         QByteArray cid(cidLen, 0);
         in.readRawData(cid.data(), cidLen);
 
-        quint32 nextIpInt;
-        quint16 nextPort;
-        quint8  corruptedFlag;
-        in >> nextIpInt >> nextPort >> corruptedFlag;
+        quint32 nextIpInt; quint16 nextPort; quint8 corrupt;
+        in >> nextIpInt >> nextPort >> corrupt;
 
-        m_nextChunkIp   = QHostAddress(nextIpInt);
-        m_nextChunkPort = nextPort;
-        bool corrupted  = (corruptedFlag != 0);
-
-        qDebug() << "ACK for" << QString::fromUtf8(cid)
-                 << "| nextPort=" << nextPort
-                 << "| corrupted=" << corrupted;
+        emit chunkAckReceived(QString::fromUtf8(cid),
+                              nextPort,
+                              corrupt != 0);
+        emit uploadProgress(m_currentChunk + 1, m_numChunks);
 
         ++m_currentChunk;
         sendCurrentChunk();
     }
 }
+

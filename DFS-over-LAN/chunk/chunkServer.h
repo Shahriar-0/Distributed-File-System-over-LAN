@@ -9,6 +9,8 @@
 #include <QVector>
 #include <QList>
 
+static const quint16 BASE_CHUNK_PORT = 50000;
+
 struct ChunkMetadata {
     QString chunkId;
     QHostAddress nextChunkIp;
