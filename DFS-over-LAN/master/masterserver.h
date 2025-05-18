@@ -1,14 +1,15 @@
 #ifndef MASTERSERVER_H
 #define MASTERSERVER_H
 
+#include <QTcpServer>
+#include <QTcpSocket>
+#include <QHostAddress>
 #include <QHash>
 #include <QList>
 #include <QSet>
-#include <QTcpServer>
-#include <QTcpSocket>
-
-using FileID = QString;
-using ChunkID = QString;
+#include <QString>
+#include <QVector>
+#include <QDebug>
 
 struct ChunkServerInfo {
     QString ip;
@@ -20,13 +21,13 @@ struct ChunkServerInfo {
 };
 
 struct ChunkInfo {
-    ChunkID chunkId;
-    QList<ChunkServerInfo> locations; // for replication and fault tolerance
+    QString chunkId;
+    QVector<ChunkServerInfo> locations;
 };
 
 struct FileMetadata {
-    FileID fileName;
-    QList<ChunkInfo> chunks;
+    QString fileName;
+    QVector<ChunkInfo> chunks;
 };
 
 class MasterServer : public QTcpServer {
@@ -41,13 +42,25 @@ private slots:
     void onDisconnected();
 
 private:
+    static constexpr int NUM_CHUNK_SERVERS = 15;
+    static constexpr int CHUNK_SERVER_BASE_PORT = 5000;
+    
+    QHash<int, QList<int>> chunkServerTree;
+    QVector<int> dfsOrder;
+    bool dfsComputed = false;
+
     QSet<QTcpSocket*> m_clients;
-    QHash<FileID, FileMetadata> fileMetadata;
+    QHash<QString, FileMetadata> fileMetadata;
 
     void handleRequest(QTcpSocket* client, const QByteArray& data);
+
     void allocateChunks(QTcpSocket* client, const QString& fileId, qint64 size);
     void lookupFile(QTcpSocket* client, const QString& fileId);
     void registerChunkReplica(const QString& chunkId, const QString& addr, quint16 port);
+
+    void buildBinaryTree();
+    void computeDFS(int node);
+
 };
 
 #endif // MASTERSERVER_H
