@@ -5,52 +5,38 @@
 #include <QUdpSocket>
 #include <QDir>
 #include <QHostAddress>
-#include <QMap>
-#include <QVector>
-#include <QList>
+#include <QFile>
+#include <QByteArray>
 
-static const quint16 BASE_CHUNK_PORT = 5000;
-
-struct ChunkMetadata {
-    QString chunkId;
-    QHostAddress nextChunkIp;
-    quint16 nextChunkPort;
-    bool corrupted;
-};
+static constexpr quint16 BASE_CHUNK_PORT = 5000;
 
 class ChunkServer : public QObject {
     Q_OBJECT
 public:
-    explicit ChunkServer(int serverId, const QHostAddress& localIp,
-                         const QVector<int>& dfsOrder, QObject* parent = nullptr);
+    explicit ChunkServer(int serverId,
+                         const QHostAddress& localIp,
+                         QObject* parent = nullptr);
     void start();
 
 private slots:
     void onReadyRead();
 
 private:
-    int serverId;
-    QString storageDir;
-    QUdpSocket* udpSocket;
-    QHostAddress localIp;
-    QMap<QString, ChunkMetadata> storedChunks;
+    int            serverId;
+    quint16        listenPort;
+    QHostAddress   localIp;
+    QUdpSocket*    udpSocket;
+    QString        storageDir;
 
-    QVector<int> dfsOrder;
-
-    int getNextChunkServerId(int currentId);
-    QHostAddress getNextChunkServerAddress(int nextId);
-
-    void processPacket(const QByteArray& packet, QHostAddress sender, quint16 senderPort);
-
+    QByteArray applyNoiseToData(const QByteArray& data, double prob);
     QByteArray encodeData(const QByteArray& data);
     QByteArray decodeData(const QByteArray& data, bool& corrupted);
 
-    QByteArray applyNoiseToData(const QByteArray& data, double prob);
-
-    void saveChunk(const QString& chunkId, const QByteArray& data, const QHostAddress& nextIp, quint16 nextPort, bool corrupted);
-    bool loadChunk(const QString& chunkId, QByteArray& data, QHostAddress& nextIp, quint16& nextPort, bool& corrupted);
-
-    void sendAck(QHostAddress receiver, quint16 port, const QString& chunkId, const QHostAddress& nextIp, quint16 nextPort, bool corrupted);
+    void processStore(const QString& chunkId,
+                      const QByteArray& data,
+                      QHostAddress sender, quint16 senderPort);
+    void processRetrieve(const QString& chunkId,
+                         QHostAddress sender, quint16 senderPort);
 };
 
 #endif // CHUNKSERVER_H
