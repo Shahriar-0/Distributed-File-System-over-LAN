@@ -2,12 +2,18 @@
 
 #include <QCoreApplication>
 #include <QTextStream>
+#include <QDataStream>
+#include <QFileInfo>
+#include <QDebug>
+
+static const quint8 OPCODE_STORE = 0x01;
+static const quint8 OPCODE_ACK   = 0x04;
 
 Client::Client(const QHostAddress& serverAddress, quint16 serverPort, QObject* parent)
     : QObject(parent),
       m_serverAddress(serverAddress),
-      m_serverPort(serverPort) {
-
+      m_serverPort(serverPort)
+{
     m_socket = new QTcpSocket(this);
     connect(m_socket, &QTcpSocket::connected, this, &Client::onConnected);
     connect(m_socket, &QTcpSocket::disconnected, this, &Client::onDisconnected);
@@ -18,12 +24,17 @@ Client::Client(const QHostAddress& serverAddress, quint16 serverPort, QObject* p
     connect(m_stdinNotifier, &QSocketNotifier::activated, this, &Client::onStdinReady);
 
     m_socket->connectToHost(m_serverAddress, m_serverPort);
+
+    m_udpSocket = new QUdpSocket(this);
+    connect(m_udpSocket, &QUdpSocket::readyRead, this, &Client::onUdpReadyRead);
+    m_udpSocket->bind(QHostAddress::AnyIPv4, 0);
 }
 
 Client::~Client() {
     m_stdinNotifier->setEnabled(false);
     m_stdinNotifier->deleteLater();
     m_socket->deleteLater();
+    m_udpSocket->deleteLater();
 }
 
 void Client::onStdinReady() {
@@ -33,6 +44,40 @@ void Client::onStdinReady() {
         if (!command.isEmpty()) {
             processCommand(command);
         }
+    }
+}
+
+void Client::processCommand(const QString& command) {
+    if (command.startsWith("UPLOAD ")) {
+        QString filePath = command.section(' ',1);
+        QFileInfo info(filePath);
+        if (!info.exists() || !info.isFile()) {
+            qDebug() << "Invalid file path:" << filePath;
+            return;
+        }
+        m_file.setFileName(filePath);
+        if (!m_file.open(QIODevice::ReadOnly)) {
+            qDebug() << "Cannot open file for upload";
+            return;
+        }
+        m_fileId       = info.fileName();
+        m_fileSize     = m_file.size();
+        m_numChunks    = int((m_fileSize + CHUNK_SIZE - 1) / CHUNK_SIZE);
+        m_currentChunk = 0;
+        m_nextChunkIp   = QHostAddress::LocalHost;
+        m_nextChunkPort = 0;
+
+        QString req = QString("ALLOCATE_CHUNKS %1 %2\n").arg(m_fileId).arg(m_fileSize);
+        m_socket->write(req.toUtf8());
+        qDebug() << "Requested allocation for" << m_fileId << ", size=" << m_fileSize;
+        return;
+    }
+
+    if (m_socket->state() == QAbstractSocket::ConnectedState) {
+        m_socket->write(command.toUtf8() + "\n");
+    }
+    else {
+        qDebug() << "Not connected to server";
     }
 }
 
@@ -47,23 +92,97 @@ void Client::onDisconnected() {
 void Client::onReadyRead() {
     while (m_socket->canReadLine()) {
         QString response = m_socket->readLine().trimmed();
-        qDebug() << "Server response: " << response;
+        qDebug() << "Server response:" << response;
+
+        if (response.startsWith("OK Allocated")) {
+            qDebug() << "Master OK—starting chunk upload";
+            startChunkUpload();
+        }
     }
 }
 
 void Client::onError(QAbstractSocket::SocketError socketError) {
-    qDebug() << "Socket error: " << m_socket->errorString();
+    qDebug() << "Socket error:" << m_socket->errorString();
     if (socketError == QAbstractSocket::ConnectionRefusedError) {
         qDebug() << "Connection refused. Is the server running?";
         QCoreApplication::exit(1);
     }
 }
 
-void Client::processCommand(const QString& command) {
-    if (m_socket->state() == QAbstractSocket::ConnectedState) {
-        m_socket->write(command.toUtf8() + "\n");
+void Client::startChunkUpload() {
+    if (m_numChunks == 0) {
+        qDebug() << "Nothing to upload";
+        return;
     }
-    else {
-        qDebug() << "Not connected to server";
+    sendCurrentChunk();
+}
+
+void Client::sendCurrentChunk() {
+    if (m_currentChunk >= m_numChunks) {
+        qDebug() << "Upload complete for" << m_fileId;
+        m_file.close();
+        return;
+    }
+
+    m_file.seek(qint64(m_currentChunk) * CHUNK_SIZE);
+    QByteArray data = m_file.read(CHUNK_SIZE);
+
+    QByteArray pkt;
+    QDataStream out(&pkt, QIODevice::WriteOnly);
+    out.setVersion(QDataStream::Qt_5_12);
+
+    QString chunkId = QString("%1_chunk_%2").arg(m_fileId).arg(m_currentChunk);
+    out << quint8(OPCODE_STORE)
+        << quint8(chunkId.size());
+    out.writeRawData(chunkId.toUtf8().constData(), chunkId.size());
+
+    // placeholder next-ip/port (ignored by server; server recomputes)
+    out << quint32(0) << quint16(0);
+
+    out << quint32(data.size());
+    out.writeRawData(data.constData(), data.size());
+
+    m_udpSocket->writeDatagram(pkt, m_nextChunkIp, m_nextChunkPort);
+    qDebug() << "Sent chunk" << chunkId << "to UDP port" << m_nextChunkPort;
+}
+
+void Client::onUdpReadyRead() {
+    while (m_udpSocket->hasPendingDatagrams()) {
+        QByteArray dg;
+        dg.resize(int(m_udpSocket->pendingDatagramSize()));
+        QHostAddress sender;
+        quint16 senderPort;
+        m_udpSocket->readDatagram(dg.data(), dg.size(), &sender, &senderPort);
+
+        QDataStream in(&dg, QIODevice::ReadOnly);
+        in.setVersion(QDataStream::Qt_5_12);
+
+        quint8 opCode;
+        in >> opCode;
+        if (opCode != OPCODE_ACK) {
+            qWarning() << "Unexpected UDP opcode:" << opCode;
+            continue;
+        }
+
+        quint8 cidLen;
+        in >> cidLen;
+        QByteArray cid(cidLen, 0);
+        in.readRawData(cid.data(), cidLen);
+
+        quint32 nextIpInt;
+        quint16 nextPort;
+        quint8  corruptedFlag;
+        in >> nextIpInt >> nextPort >> corruptedFlag;
+
+        m_nextChunkIp   = QHostAddress(nextIpInt);
+        m_nextChunkPort = nextPort;
+        bool corrupted  = (corruptedFlag != 0);
+
+        qDebug() << "ACK for" << QString::fromUtf8(cid)
+                 << "| nextPort=" << nextPort
+                 << "| corrupted=" << corrupted;
+
+        ++m_currentChunk;
+        sendCurrentChunk();
     }
 }

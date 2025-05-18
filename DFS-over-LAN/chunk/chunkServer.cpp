@@ -1,4 +1,4 @@
-#include "ChunkServer.h"
+#include "chunkServer.h"
 #include <QFile>
 #include <QDataStream>
 #include <QRandomGenerator>
@@ -19,10 +19,13 @@ ChunkServer::ChunkServer(int serverId, const QHostAddress& localIp,
 
 int ChunkServer::getNextChunkServerId(int currentId) {
     int index = dfsOrder.indexOf(currentId);
-    if (index < 0 || index == dfsOrder.size() - 1) {
+    if (index < 0 || dfsOrder.isEmpty()) {
         return -1;
     }
-    return dfsOrder[index + 1];
+    int nextIndex = (index + 1) % dfsOrder.size();
+
+    qInfo() << "Current server: " << currentId << ",next server: " << nextIndex;
+    return dfsOrder[nextIndex];
 }
 
 QHostAddress ChunkServer::getNextChunkServerAddress(int nextId) {
