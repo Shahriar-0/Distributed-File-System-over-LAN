@@ -56,7 +56,9 @@ private:
 
     void allocateChunks(QTcpSocket* client, const QString& fileId, qint64 size);
     void lookupFile(QTcpSocket* client, const QString& fileId);
-    void registerChunkReplica(const QString& chunkId, const QString& addr, quint16 port);
+    QString getMetadataString(const FileMetadata& metadata);
+    // TODO: register chunk replica
+    // void registerChunkReplica(const QString& chunkId, const QString& addr, quint16 port);
 
     void buildBinaryTree();
     void computeDFS(int node);
