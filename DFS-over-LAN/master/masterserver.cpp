@@ -2,8 +2,7 @@
 
 #include <QRandomGenerator>
 
-MasterServer::MasterServer(QObject* parent)
-    : QTcpServer(parent) {
+MasterServer::MasterServer(QObject* parent) : QTcpServer(parent) {
     buildBinaryTree();
     computeDFS(0);
     dfsComputed = true;
@@ -33,7 +32,8 @@ void MasterServer::onNewConnection() {
 
 void MasterServer::onReadyRead() {
     QTcpSocket* client = qobject_cast<QTcpSocket*>(sender());
-    if (!client) return;
+    if (!client)
+        return;
 
     while (client->canReadLine()) {
         QByteArray data = client->readLine().trimmed();
@@ -44,7 +44,8 @@ void MasterServer::onReadyRead() {
 
 void MasterServer::onDisconnected() {
     QTcpSocket* client = qobject_cast<QTcpSocket*>(sender());
-    if (!client) return;
+    if (!client)
+        return;
 
     m_clients.remove(client);
     qDebug() << "Client disconnected:" << client->peerAddress().toString();
@@ -93,9 +94,9 @@ void MasterServer::buildBinaryTree() {
 }
 
 void MasterServer::computeDFS(int node) {
-    for (int child : chunkServerTree[node]) {
+    for (int child : chunkServerTree[node])
         computeDFS(child);
-    }
+
     dfsOrder.append(node + CHUNK_SERVER_BASE_PORT);
 }
 
