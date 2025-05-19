@@ -7,6 +7,8 @@
 
 int main(int argc, char* argv[]) {
     QGuiApplication app(argc, argv);
+    QCoreApplication::setApplicationName("dfs-client-gui");
+    QCoreApplication::setApplicationVersion("1.0");
 
     QQmlApplicationEngine engine;
 

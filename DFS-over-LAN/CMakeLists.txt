@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(DFS LANGUAGES CXX)
+project(DFS_over_LAN LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

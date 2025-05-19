@@ -5,6 +5,8 @@
 
 int main(int argc, char* argv[]) {
     QCoreApplication a(argc, argv);
+    QCoreApplication::setApplicationName("dfs-chunk");
+    QCoreApplication::setApplicationVersion("1.0");
 
     QHostAddress localIp = QHostAddress::LocalHost;
     const int N = 15;
