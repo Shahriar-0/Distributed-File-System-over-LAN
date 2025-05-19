@@ -1,15 +1,15 @@
 #ifndef MASTERSERVER_H
 #define MASTERSERVER_H
 
-#include <QTcpServer>
-#include <QTcpSocket>
-#include <QHostAddress>
+#include <QDebug>
 #include <QHash>
+#include <QHostAddress>
 #include <QList>
 #include <QSet>
 #include <QString>
+#include <QTcpServer>
+#include <QTcpSocket>
 #include <QVector>
-#include <QDebug>
 
 struct ChunkServerInfo {
     QString ip;
@@ -44,7 +44,7 @@ private slots:
 private:
     static constexpr int NUM_CHUNK_SERVERS = 15;
     static constexpr int CHUNK_SERVER_BASE_PORT = 5000;
-    
+
     QHash<int, QList<int>> chunkServerTree;
     QVector<int> dfsOrder;
     bool dfsComputed = false;
@@ -60,7 +60,6 @@ private:
 
     void buildBinaryTree();
     void computeDFS(int node);
-
 };
 
 #endif // MASTERSERVER_H

@@ -5,7 +5,7 @@
 
 #include "MasterServer.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     QCoreApplication app(argc, argv);
     QCoreApplication::setApplicationName("dfs-master");
     QCoreApplication::setApplicationVersion("1.0");
@@ -15,12 +15,10 @@ int main(int argc, char *argv[]) {
     parser.addHelpOption();
     parser.addVersionOption();
 
-    QCommandLineOption portOption(
-        QStringList() << "p" << "port",
+    QCommandLineOption portOption(QStringList() << "p" << "port",
         "Port on which the master server will listen (default: 4000).",
-        "port",
-        "4000"
-    );
+        "port", "4000");
+
     parser.addOption(portOption);
 
     parser.process(app);

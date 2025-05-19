@@ -1,4 +1,5 @@
 #include "masterserver.h"
+
 #include <QRandomGenerator>
 
 MasterServer::MasterServer(QObject* parent)
@@ -68,7 +69,7 @@ void MasterServer::handleRequest(QTcpSocket* client, const QByteArray& data) {
         QString fileId = QString::fromUtf8(parts[1]);
         lookupFile(client, fileId);
     }
-        else if (command == "REGISTER_CHUNK_REPLICA" && parts.size() >= 4) {
+    else if (command == "REGISTER_CHUNK_REPLICA" && parts.size() >= 4) {
         QString chunkId = QString::fromUtf8(parts[1]);
         QString addr = QString::fromUtf8(parts[2]);
         quint16 port = parts[3].toUShort();
@@ -90,7 +91,6 @@ void MasterServer::buildBinaryTree() {
         chunkServerTree[i] = children;
     }
 }
-
 
 void MasterServer::computeDFS(int node) {
     for (int child : chunkServerTree[node]) {

@@ -1,6 +1,7 @@
+#include <qqmlcontext.h>
+
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
-#include <qqmlcontext.h>
 
 #include "client.h"
 

@@ -1,47 +1,39 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
+#include <QFile>
+#include <QHostAddress>
 #include <QObject>
 #include <QTcpSocket>
 #include <QUdpSocket>
-#include <QFile>
-#include <QHostAddress>
 #include <QVector>
 
 struct ChunkServerInfo {
-    QString      chunkId;
+    QString chunkId;
     QHostAddress ip;
-    quint16      port;
+    quint16 port;
 };
 
 class Client : public QObject {
     Q_OBJECT
 public:
-    explicit Client(const QHostAddress& serverAddress,
-                    quint16        serverPort,
-                    QObject*       parent = nullptr);
+    explicit Client(const QHostAddress& serverAddress, quint16 serverPort, QObject* parent = nullptr);
     ~Client();
 
-    Q_INVOKABLE void sendCommand(const QString& command,
-                                 const QString& params);
+    Q_INVOKABLE void sendCommand(const QString& command, const QString& params);
 
 signals:
     void responseReceived(const QString& response);
-    void errorOccurred   (const QString& error);
+    void errorOccurred(const QString& error);
     void connectionStateChanged(bool connected);
 
-    void uploadProgress   (int current, int total);
-    void chunkAckReceived (const QString& chunkId,
-                           const QString& nextIp,
-                           quint16        nextPort,
-                           bool           corrupted);
-    void uploadFinished   (const QString& fileId);
+    void uploadProgress(int current, int total);
+    void chunkAckReceived(const QString& chunkId, const QString& nextIp, quint16 nextPort, bool corrupted);
+    void uploadFinished(const QString& fileId);
 
-    void downloadProgress  (int current, int total);
-    void chunkDataReceived (const QString& chunkId,
-                            QByteArray     data,
-                            bool           corrupted);
-    void downloadFinished  (const QString& fileId);
+    void downloadProgress(int current, int total);
+    void chunkDataReceived(const QString& chunkId, QByteArray data, bool corrupted);
+    void downloadFinished(const QString& fileId);
 
 private slots:
     void onConnected();
@@ -58,23 +50,23 @@ private:
     void startChunkDownload();
     void sendCurrentDownload();
 
-    QTcpSocket*    m_tcp;
-    QUdpSocket*    m_udp;
-    QHostAddress   m_masterIp;
-    quint16        m_masterPort;
-    bool           m_connected = false;
+    QTcpSocket* m_tcp;
+    QUdpSocket* m_udp;
+    QHostAddress m_masterIp;
+    quint16 m_masterPort;
+    bool m_connected = false;
 
-    QFile          m_file;
-    QString        m_fileId;
-    qint64         m_fileSize     = 0;
-    int            m_numChunks    = 0;
-    int            m_currentChunk = 0;
+    QFile m_file;
+    QString m_fileId;
+    qint64 m_fileSize = 0;
+    int m_numChunks = 0;
+    int m_currentChunk = 0;
     QVector<ChunkServerInfo> m_uploadChunks;
 
-    QFile          m_outFile;
-    QString        m_downloadId;
-    int            m_downloadChunks      = 0;
-    int            m_downloadCurrent     = 0;
+    QFile m_outFile;
+    QString m_downloadId;
+    int m_downloadChunks = 0;
+    int m_downloadCurrent = 0;
     QVector<ChunkServerInfo> m_downloadChunksInfo;
 
     static constexpr int CHUNK_SIZE = 8 * 1024;

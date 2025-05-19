@@ -1,18 +1,13 @@
 #include "client.h"
+
 #include <QDataStream>
-#include <QFileInfo>
-#include <QTextStream>
 #include <QDebug>
 #include <QDir>
+#include <QFileInfo>
+#include <QTextStream>
 
-
-Client::Client(const QHostAddress& serverAddress,
-               quint16        serverPort,
-               QObject*       parent)
-    : QObject(parent),
-      m_masterIp(serverAddress),
-      m_masterPort(serverPort)
-{
+Client::Client(const QHostAddress& serverAddress, quint16 serverPort, QObject* parent)
+    : QObject(parent), m_masterIp(serverAddress), m_masterPort(serverPort) {
     m_tcp = new QTcpSocket(this);
     connect(m_tcp, &QTcpSocket::connected, this, &Client::onConnected);
     connect(m_tcp, &QTcpSocket::disconnected, this, &Client::onDisconnected);
@@ -30,19 +25,16 @@ Client::~Client() {
     m_udp->deleteLater();
 }
 
-void Client::sendCommand(const QString& command,
-                         const QString& params)
-{
+void Client::sendCommand(const QString& command, const QString& params) {
     if (command == "ALLOCATE_CHUNKS") {
         QStringList parts = params.split(' ', Qt::SkipEmptyParts);
         if (parts.size() >= 2) {
-            m_fileId    = parts[0];
-            m_fileSize  = parts[1].toLongLong();
+            m_fileId = parts[0];
+            m_fileSize = parts[1].toLongLong();
             m_numChunks = int((m_fileSize + CHUNK_SIZE - 1) / CHUNK_SIZE);
             m_currentChunk = 0;
             m_uploadChunks.clear();
-            const QString basePath = 
-                "C:/Tempp/";  
+            const QString basePath = "C:/Tempp/";
             QString fullPath = QDir(basePath).filePath(m_fileId);
 
             m_file.setFileName(fullPath);
@@ -55,23 +47,22 @@ void Client::sendCommand(const QString& command,
 
     else if (command == "LOOKUP_FILE") {
         // not sure yet
-        m_downloadId      = params.trimmed();
+        m_downloadId = params.trimmed();
         m_downloadCurrent = 0;
         m_downloadChunksInfo.clear();
 
         m_outFile.setFileName(m_downloadId + ".download");
-        if (!m_outFile.open(QIODevice::WriteOnly|QIODevice::Truncate)) {
+        if (!m_outFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
             emit errorOccurred("Cannot open output: " + m_outFile.fileName());
             return;
         }
     }
 
     QByteArray line = (command + " " + params + "\n").toUtf8();
-    if (m_tcp->state() == QAbstractSocket::ConnectedState) {
+    if (m_tcp->state() == QAbstractSocket::ConnectedState)
         m_tcp->write(line);
-    } else {
+    else
         emit errorOccurred("Not connected to master server");
-    }
 }
 
 void Client::onConnected() {
@@ -87,9 +78,8 @@ void Client::onDisconnected() {
 void Client::onError(QAbstractSocket::SocketError socketError) {
     Q_UNUSED(socketError)
     emit errorOccurred(m_tcp->errorString());
-        if (socketError == QAbstractSocket::ConnectionRefusedError) {
+    if (socketError == QAbstractSocket::ConnectionRefusedError)
         emit connectionStateChanged(false);
-    }
 }
 
 void Client::onReadyRead() {
@@ -98,10 +88,10 @@ void Client::onReadyRead() {
         emit responseReceived(line);
 
         auto parts = line.split(' ', Qt::SkipEmptyParts);
-        if (parts.size() >= 3 && parts[0]=="OK" && parts[1]=="Allocated") {
+        if (parts.size() >= 3 && parts[0] == "OK" && parts[1] == "Allocated") {
             int N = parts[2].toInt();
             int idx = 3;
-            for (int i=0; i<N && idx+2<parts.size(); ++i) {
+            for (int i = 0; i < N && idx + 2 < parts.size(); ++i) {
                 QString cid = parts[idx++];
                 QHostAddress ip(parts[idx++]);
                 quint16 port = parts[idx++].toUShort();
@@ -109,11 +99,11 @@ void Client::onReadyRead() {
             }
             startChunkUpload();
         }
-        else if (parts.size()>=4 && parts[0]=="FILE_METADATA") {
-            int total = (parts.size()-2)/3;
+        else if (parts.size() >= 4 && parts[0] == "FILE_METADATA") {
+            int total = (parts.size() - 2) / 3;
             int idx = 2;
             m_downloadChunks = total;
-            for (int i=0; i<total && idx+2<parts.size(); ++i) {
+            for (int i = 0; i < total && idx + 2 < parts.size(); ++i) {
                 QString cid = parts[idx++];
                 QHostAddress ip(parts[idx++]);
                 quint16 port = parts[idx++].toUShort();
@@ -135,82 +125,67 @@ void Client::sendCurrentChunk() {
         emit uploadFinished(m_fileId);
         return;
     }
-    auto &info = m_uploadChunks[m_currentChunk];
-    m_file.seek(qint64(m_currentChunk)*CHUNK_SIZE);
+    auto& info = m_uploadChunks[m_currentChunk];
+    m_file.seek(qint64(m_currentChunk) * CHUNK_SIZE);
     QByteArray data = m_file.read(CHUNK_SIZE);
     // (placeholder: encode)
 
-    QString header = QString("STORE %1 %2\n")
-                        .arg(info.chunkId)
-                        .arg(data.size());
+    QString header = QString("STORE %1 %2\n").arg(info.chunkId).arg(data.size());
     QByteArray pkt = header.toUtf8() + data;
 
-    m_udp->writeDatagram(pkt,
-                        info.ip,
-                        info.port);
-    emit responseReceived(
-        QString("Sent %1 → %2:%3")
-        .arg(info.chunkId)
-        .arg(info.ip.toString())
-        .arg(info.port)
-    );
+    m_udp->writeDatagram(pkt, info.ip, info.port);
+    emit responseReceived(QString("Sent %1 → %2:%3").arg(info.chunkId).arg(info.ip.toString()).arg(info.port));
 }
 
 void Client::startChunkDownload() {
-    if (m_downloadChunksInfo.isEmpty()) return;
+    if (m_downloadChunksInfo.isEmpty())
+        return;
     sendCurrentDownload();
 }
 
 void Client::sendCurrentDownload() {
-    if (m_downloadCurrent >= m_downloadChunks) return;
-    auto &info = m_downloadChunksInfo[m_downloadCurrent];
+    if (m_downloadCurrent >= m_downloadChunks)
+        return;
+
+    auto& info = m_downloadChunksInfo[m_downloadCurrent];
     QString header = QString("RETRIEVE %1\n").arg(info.chunkId);
-    m_udp->writeDatagram(header.toUtf8(),
-                         info.ip,
-                         info.port);
-    emit responseReceived(
-        QString("Requested %1 → %2:%3")
-        .arg(info.chunkId)
-        .arg(info.ip.toString())
-        .arg(info.port)
-    );
+    m_udp->writeDatagram(header.toUtf8(), info.ip, info.port);
+    emit responseReceived(QString("Requested %1 → %2:%3").arg(info.chunkId).arg(info.ip.toString()).arg(info.port));
 }
 
 void Client::onUdpReadyRead() {
     while (m_udp->hasPendingDatagrams()) {
-        QByteArray dg; 
+        QByteArray dg;
         dg.resize(int(m_udp->pendingDatagramSize()));
-        QHostAddress sender; 
+        QHostAddress sender;
         quint16 senderPort;
         m_udp->readDatagram(dg.data(), dg.size(), &sender, &senderPort);
 
         int nl = dg.indexOf('\n');
         if (nl < 0) continue;
         QString hdr = QString::fromUtf8(dg.constData(), nl).trimmed();
-        QByteArray payload = dg.mid(nl+1);
+        QByteArray payload = dg.mid(nl + 1);
 
         auto parts = hdr.split(' ', Qt::SkipEmptyParts);
-        if (parts[0]=="ACK" && parts.size()>=4) {
-            QString cid   = parts[1];
-            QString nip   = parts[2];
-            quint16 npt   = parts[3].toUShort();
-            bool corrupt  = (parts.size()>4 && parts[4]=="1");
+        if (parts[0] == "ACK" && parts.size() >= 4) {
+            QString cid = parts[1];
+            QString nip = parts[2];
+            quint16 npt = parts[3].toUShort();
+            bool corrupt = (parts.size() > 4 && parts[4] == "1");
             emit chunkAckReceived(cid, nip, npt, corrupt);
-            emit uploadProgress(m_currentChunk+1,
-                                m_uploadChunks.size());
+            emit uploadProgress(m_currentChunk + 1, m_uploadChunks.size());
             ++m_currentChunk;
             sendCurrentChunk();
         }
-        else if (parts[0]=="DATA" && parts.size()>=4) {
-            QString cid   = parts[1];
-            bool corrupt  = (parts[2]=="1");
-            int len       = parts[3].toInt();
+        else if (parts[0] == "DATA" && parts.size() >= 4) {
+            QString cid = parts[1];
+            bool corrupt = (parts[2] == "1");
+            int len = parts[3].toInt();
             QByteArray data = payload.left(len);
             // (placeholder: decode)
             m_outFile.write(data);
             emit chunkDataReceived(cid, data, corrupt);
-            emit downloadProgress(m_downloadCurrent+1,
-                                  m_downloadChunks);
+            emit downloadProgress(m_downloadCurrent + 1, m_downloadChunks);
             ++m_downloadCurrent;
             if (m_downloadCurrent < m_downloadChunks)
                 sendCurrentDownload();

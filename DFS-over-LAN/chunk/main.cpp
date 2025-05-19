@@ -1,8 +1,9 @@
 #include <QCoreApplication>
 #include <QHostAddress>
+
 #include "chunkServer.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     QCoreApplication a(argc, argv);
 
     QHostAddress localIp = QHostAddress::LocalHost;
