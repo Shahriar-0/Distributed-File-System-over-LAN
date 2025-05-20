@@ -61,10 +61,11 @@ void ChunkServer::onReadyRead() {
 }
 
 void ChunkServer::processStore(const QString& chunkId, const QByteArray& data, QHostAddress sender, quint16 senderPort) {
-    QByteArray noisy = applyNoiseToData(data, 0.01);
+    // QByteArray noisy = applyNoiseToData(data, 0.01); // TODO: add noise
 
     bool corrupted = false;
-    QByteArray decoded = decodeData(noisy, corrupted);
+    // QByteArray decoded = decodeData(noisy, corrupted);  // TODO: add noise
+    QByteArray decoded = decodeData(data, corrupted);
 
     QString filePath = storageDir + "/" + chunkId + ".bin";
     QFile f(filePath);
@@ -93,7 +94,7 @@ void ChunkServer::processRetrieve(const QString& chunkId, QHostAddress sender, q
     f.close();
     bool corrupted = false;
 
-    // should we encode here again?
+    // should we encode here again? honestly don't know
     QByteArray encoded = encodeData(data);
 
     QString header = QString("DATA %1 %2 %3\n").arg(chunkId).arg(corrupted ? 1 : 0).arg(encoded.size());
@@ -104,26 +105,28 @@ void ChunkServer::processRetrieve(const QString& chunkId, QHostAddress sender, q
     qInfo() << "ChunkServer" << serverId << "served" << chunkId << (corrupted ? "(corrupted)" : "");
 }
 
-QByteArray ChunkServer::applyNoiseToData(const QByteArray& data, double prob) {
-    QByteArray out = data;
-    auto gen = QRandomGenerator::global();
-    for (int i = 0; i < out.size(); ++i) {
-        char byte = out[i];
-        for (int b = 0; b < 8; ++b) {
-            if (gen->generateDouble() < prob)
-                byte ^= (1 << b);
-        }
-        out[i] = byte;
-    }
-    return out;
-}
+// TODO: add noise
+// QByteArray ChunkServer::applyNoiseToData(const QByteArray& data, double prob) {
+//     QByteArray out = data;
+//     auto gen = QRandomGenerator::global();
+//     for (int i = 0; i < out.size(); ++i) {
+//         char byte = out[i];
+//         for (int b = 0; b < 8; ++b) {
+//             if (gen->generateDouble() < prob)
+//                 byte ^= (1 << b);
+//         }
+//         out[i] = byte;
+//     }
+//     return out;
+// }
 
-// dummy functions - to be implemented ishalla
+// TODO: dummy functions - to be implemented ishalla (nmkh)
 QByteArray ChunkServer::decodeData(const QByteArray& data, bool& corrupted) {
     corrupted = false;
     return data;
 }
 
+// TODO
 QByteArray ChunkServer::encodeData(const QByteArray& data) {
     return data;
 }

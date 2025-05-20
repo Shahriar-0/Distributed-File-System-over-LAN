@@ -26,7 +26,7 @@ private:
     QUdpSocket* udpSocket;
     QString storageDir;
 
-    QByteArray applyNoiseToData(const QByteArray& data, double prob);
+    // QByteArray applyNoiseToData(const QByteArray& data, double prob);  // TODO: add noise
     QByteArray encodeData(const QByteArray& data);
     QByteArray decodeData(const QByteArray& data, bool& corrupted);
 
