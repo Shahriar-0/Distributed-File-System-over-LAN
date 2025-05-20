@@ -102,6 +102,12 @@ Window {
             textArea.positionViewAtEnd()
         }
 
+        function onLogReceived(log) {
+            textArea.append("Log: " + log + "\n")
+            textArea.forceActiveFocus()
+            textArea.positionViewAtEnd()
+        }
+
         function onErrorOccurred(error) {
             textArea.append("Error: " + error + "\n")
             if (error.includes("Connection refused")) {

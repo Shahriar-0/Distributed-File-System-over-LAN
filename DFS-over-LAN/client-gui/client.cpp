@@ -144,7 +144,7 @@ void Client::uploadFileToChunk() {
     QByteArray pkt = header.toUtf8() + data;
 
     m_udp->writeDatagram(pkt, info.ip, info.port);
-    emit responseReceived(QString("Sent %1 → %2:%3").arg(info.chunkId).arg(info.ip.toString()).arg(info.port));
+    emit logReceived(QString("Sent %1 → %2:%3").arg(info.chunkId).arg(info.ip.toString()).arg(info.port));
 }
 
 void Client::downloadFileFromChunk() {
@@ -154,7 +154,7 @@ void Client::downloadFileFromChunk() {
     auto& info = m_downloadChunksInfo[m_downloadCurrent];
     QString header = QString("RETRIEVE %1\n").arg(info.chunkId);
     m_udp->writeDatagram(header.toUtf8(), info.ip, info.port);
-    emit responseReceived(QString("Requested %1 → %2:%3").arg(info.chunkId).arg(info.ip.toString()).arg(info.port));
+    emit logReceived(QString("Requested %1 → %2:%3").arg(info.chunkId).arg(info.ip.toString()).arg(info.port));
 }
 
 void Client::onUdpReadyRead() {
@@ -170,6 +170,8 @@ void Client::onUdpReadyRead() {
             continue;
         QString hdr = QString::fromUtf8(dg.constData(), nl).trimmed();
         QByteArray payload = dg.mid(nl + 1);
+
+        emit responseReceived(dg);
 
         auto parts = hdr.split(' ', Qt::SkipEmptyParts);
         if (parts[0] == "ACK" && parts.size() >= 4) {

@@ -30,6 +30,7 @@ signals:
     void uploadProgress(int current, int total);
     void chunkAckReceived(const QString& chunkId, const QString& nextIp, quint16 nextPort, bool corrupted);
     void uploadFinished(const QString& fileId);
+    void logReceived(const QString& log);
 
     void downloadProgress(int current, int total);
     void chunkDataReceived(const QString& chunkId, QByteArray data, bool corrupted);
