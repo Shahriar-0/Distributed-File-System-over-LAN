@@ -33,7 +33,7 @@ signals:
 
     void downloadProgress(int current, int total);
     void chunkDataReceived(const QString& chunkId, QByteArray data, bool corrupted);
-    void downloadFinished(const QString& fileId);
+    void downloadFinished(const QString& fileId, const QString& filePath, qint64 fileSize);
 
 private slots:
     void onConnected();

@@ -196,7 +196,8 @@ void Client::onUdpReadyRead() {
                 downloadFileFromChunk();
             else {
                 m_outFile.close();
-                emit downloadFinished(m_downloadId);
+                QFileInfo fi(m_outFile.fileName());
+                emit downloadFinished(m_downloadId, fi.absoluteFilePath(), fi.size());
             }
         }
     }

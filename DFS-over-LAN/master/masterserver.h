@@ -44,6 +44,7 @@ private slots:
 private:
     static constexpr int NUM_CHUNK_SERVERS = 15;
     static constexpr int CHUNK_SERVER_BASE_PORT = 5000;
+    static constexpr int CHUNK_SIZE = 8 * 1024;
 
     QHash<int, QList<int>> chunkServerTree;
     QVector<int> dfsOrder;

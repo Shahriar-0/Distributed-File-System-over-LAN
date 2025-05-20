@@ -116,8 +116,7 @@ void MasterServer::allocateChunks(QTcpSocket* client, const QString& fileId, qin
         return;
     }
 
-    const qint64 chunkSize = 8 * 1024; // 8 KB
-    int numChunks = int((size + chunkSize - 1) / chunkSize); // round up
+    int numChunks = int((size + CHUNK_SIZE - 1) / CHUNK_SIZE); // round up
 
     int startIdx = QRandomGenerator::global()->bounded(dfsOrder.size());
 

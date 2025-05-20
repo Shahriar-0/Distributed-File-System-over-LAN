@@ -142,8 +142,8 @@ Window {
             textArea.positionViewAtEnd()
         }
 
-        function onDownloadFinished(fileId) {
-            textArea.append("Download finished: " + fileId + "\n")
+        function onDownloadFinished(fileId, filePath, fileSize) {
+            textArea.append("Download finished: " + fileId + " to " + filePath + " (" + fileSize + " bytes)" + "\n")
             downloadProgressBar.visible = false
             textArea.forceActiveFocus()
             textArea.positionViewAtEnd()
