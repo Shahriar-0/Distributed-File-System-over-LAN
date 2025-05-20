@@ -55,7 +55,6 @@ void Client::sendCommand(const QString& command, const QString& params) {
     }
 
     else if (command == "LOOKUP_FILE") {
-        // not sure yet
         m_downloadId = params.trimmed();
         m_downloadCurrent = 0;
         m_downloadChunksInfo.clear();
@@ -85,7 +84,6 @@ void Client::onDisconnected() {
 }
 
 void Client::onError(QAbstractSocket::SocketError socketError) {
-    // Q_UNUSED(socketError)
     emit errorOccurred(m_tcp->errorString());
     if (socketError == QAbstractSocket::ConnectionRefusedError)
         emit connectionStateChanged(false);

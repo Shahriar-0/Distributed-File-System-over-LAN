@@ -108,6 +108,24 @@ Window {
             textArea.positionViewAtEnd()
         }
 
+        function onChunkAckReceived(chunkId, nextIp, nextPort, corrupted) {
+            textArea.append("Chunk " + chunkId + " acknowledged\n")
+            if (corrupted) {
+                textArea.append("Warning: Data corruption detected\n")
+            }
+            textArea.forceActiveFocus()
+            textArea.positionViewAtEnd()
+        }
+
+        function onChunkDataReceived(chunkId, data, corrupted) {
+            textArea.append("Chunk " + chunkId + " received\n")
+            if (corrupted) {
+                textArea.append("Warning: Data corruption detected\n")
+            }
+            textArea.forceActiveFocus()
+            textArea.positionViewAtEnd()
+        }
+
         function onErrorOccurred(error) {
             textArea.append("Error: " + error + "\n")
             if (error.includes("Connection refused")) {
@@ -145,6 +163,8 @@ Window {
 
         function onUploadFinished(fileId) {
             textArea.append("Upload finished: " + fileId + "\n")
+            uploadProgressBar.value = 0
+            uploadProgressBar.to = 1
             uploadProgressBar.visible = false
             textArea.forceActiveFocus()
             textArea.positionViewAtEnd()
@@ -152,6 +172,8 @@ Window {
 
         function onDownloadFinished(fileId, filePath, fileSize) {
             textArea.append("Download finished: " + fileId + " to " + filePath + " (" + fileSize + " bytes)\n")
+            downloadProgressBar.value = 0
+            downloadProgressBar.to = 1
             downloadProgressBar.visible = false
             textArea.forceActiveFocus()
             textArea.positionViewAtEnd()
