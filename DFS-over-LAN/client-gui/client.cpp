@@ -67,7 +67,7 @@ void Client::sendCommand(const QString& command, const QString& params) {
         }
     }
 
-    QByteArray pkt = (command + " " + params + "\n").toUtf8();
+    QByteArray pkt = (command + " " + pkt_params + "\n").toUtf8();
     if (m_tcp->state() == QAbstractSocket::ConnectedState)
         m_tcp->write(pkt);
     else
