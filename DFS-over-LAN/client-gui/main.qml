@@ -47,6 +47,32 @@ Window {
             }
         }
 
+        Label {
+            text: "Uploading:"
+            visible: uploadProgressBar.visible
+        }
+
+        ProgressBar {
+            id: uploadProgressBar
+            Layout.fillWidth: true
+            visible: false
+            value: 0
+            maximumValue: 1
+        }
+
+        Label {
+            text: "Downloading:"
+            visible: downloadProgressBar.visible
+        }
+
+        ProgressBar {
+            id: downloadProgressBar
+            Layout.fillWidth: true
+            visible: false
+            value: 0
+            maximumValue: 1
+        }
+
         ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -57,7 +83,7 @@ Window {
                 readOnly: true
                 wrapMode: Text.Wrap
                 width: parent.width
-                height: contentHeight    
+                height: contentHeight
             }
         }
     }
@@ -67,6 +93,9 @@ Window {
 
         function onResponseReceived(response) {
             textArea.append("Server response: " + response + "\n")
+            if (response.includes("corrupt")) {
+                textArea.append("Warning: Data corruption detected\n")
+            }
             textArea.forceActiveFocus()
             textArea.positionViewAtEnd()
         }
@@ -85,12 +114,37 @@ Window {
                 statusLabel.text = "Connected"
                 sendButton.enabled = true
                 textArea.append("Connected to server\n")
-            }
-            else {
+            } else {
                 statusLabel.text = "Disconnected"
                 sendButton.enabled = false
                 textArea.append("Disconnected from server\n")
             }
+            textArea.forceActiveFocus()
+            textArea.positionViewAtEnd()
+        }
+
+        function onUploadProgress(current, total) {
+            uploadProgressBar.value = current
+            uploadProgressBar.maximumValue = total
+            uploadProgressBar.visible = true
+        }
+
+        function onDownloadProgress(current, total) {
+            downloadProgressBar.value = current
+            downloadProgressBar.maximumValue = total
+            downloadProgressBar.visible = true
+        }
+
+        function onUploadFinished(fileId) {
+            textArea.append("Upload finished: " + fileId + "\n")
+            uploadProgressBar.visible = false
+            textArea.forceActiveFocus()
+            textArea.positionViewAtEnd()
+        }
+
+        function onDownloadFinished(fileId) {
+            textArea.append("Download finished: " + fileId + "\n")
+            downloadProgressBar.visible = false
             textArea.forceActiveFocus()
             textArea.positionViewAtEnd()
         }

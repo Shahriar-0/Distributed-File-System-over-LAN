@@ -44,11 +44,11 @@ private slots:
     void onUdpReadyRead();
 
 private:
-    void startChunkUpload();
-    void sendCurrentChunk();
+    void uploadFileToChunk();
+    void downloadFileFromChunk();
 
-    void startChunkDownload();
-    void sendCurrentDownload();
+    static QString parentDirectory();
+    void getChunkInfos(QString pkt, QVector<ChunkServerInfo>& infos, int idx, int numChunks);
 
     QTcpSocket* m_tcp;
     QUdpSocket* m_udp;
