@@ -1,14 +1,71 @@
 #include "masterserver.h"
 
+#include <QFile>
+#include <QJsonDocument>
 #include <QRandomGenerator>
+#include <QCoreApplication>
+
+MasterServer* MasterServer::s_instance = nullptr;
 
 MasterServer::MasterServer(QObject* parent) : QTcpServer(parent) {
+    s_instance = this;
     buildBinaryTree();
     computeDFS(0);
     dfsComputed = true;
     qDebug() << "Master server DFS order:" << dfsOrder;
 
     connect(this, &QTcpServer::newConnection, this, &MasterServer::onNewConnection);
+
+    signal(SIGINT, &MasterServer::handleSigInt);
+
+    QFile logFile("master_log.json");
+    if (logFile.open(QIODevice::ReadOnly)) {
+        QByteArray data = logFile.readAll();
+        QJsonDocument doc = QJsonDocument::fromJson(data);
+        if (doc.isObject()) {
+            QJsonObject root = doc.object();
+            for (auto it = root.begin(); it != root.end(); ++it) {
+                if (it.value().isObject()) {
+                    FileMetadata meta = FileMetadata::fromJson(it.value().toObject());
+                    fileMetadata[it.key()] = meta;
+                }
+            }
+            qDebug() << "Loaded" << fileMetadata.size() << "file metadata from log";
+        }
+        else {
+            qWarning() << "Invalid JSON in log file";
+        }
+    }
+    else {
+        qDebug() << "No log file found, starting with empty metadata";
+    }
+}
+
+MasterServer::~MasterServer() {
+    saveLog();
+}
+
+void MasterServer::saveLog() {
+    QJsonObject root;
+    for (auto it = fileMetadata.begin(); it != fileMetadata.end(); ++it) {
+        root[it.key()] = it.value().toJson();
+    }
+    QJsonDocument doc(root);
+    QFile logFile("master_log.json");
+    if (logFile.open(QIODevice::WriteOnly)) {
+        logFile.write(doc.toJson());
+        qDebug() << "Saved file metadata to log";
+    }
+    else {
+        qWarning() << "Could not open log file for writing";
+    }
+}
+
+void MasterServer::handleSigInt(int sig) {
+    Q_UNUSED(sig);
+    if (s_instance)
+        qDebug() << "Received SIGINT, saving log and exiting...";
+    QCoreApplication::quit();
 }
 
 void MasterServer::buildBinaryTree() {

@@ -10,10 +10,27 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QVector>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <csignal>
 
 struct ChunkServerInfo {
     QString ip;
     quint16 port;
+
+    QJsonObject toJson() const {
+        QJsonObject obj;
+        obj["ip"] = ip;
+        obj["port"] = port;
+        return obj;
+    }
+
+    static ChunkServerInfo fromJson(const QJsonObject& obj) {
+        ChunkServerInfo info;
+        info.ip = obj["ip"].toString();
+        info.port = static_cast<quint16>(obj["port"].toInt());
+        return info;
+    }
 
     bool operator==(const ChunkServerInfo& other) const {
         return ip == other.ip && port == other.port;
@@ -23,18 +40,64 @@ struct ChunkServerInfo {
 struct ChunkInfo {
     QString chunkId;
     QVector<ChunkServerInfo> locations;
+
+    QJsonObject toJson() const {
+        QJsonObject obj;
+        obj["chunkId"] = chunkId;
+        QJsonArray locArray;
+        for (const auto& loc : locations) {
+            locArray.append(loc.toJson());
+        }
+        obj["locations"] = locArray;
+        return obj;
+    }
+
+    static ChunkInfo fromJson(const QJsonObject& obj) {
+        ChunkInfo info;
+        info.chunkId = obj["chunkId"].toString();
+        QJsonArray locArray = obj["locations"].toArray();
+        for (const auto& locVal : locArray) {
+            info.locations.append(ChunkServerInfo::fromJson(locVal.toObject()));
+        }
+        return info;
+    }
 };
 
 struct FileMetadata {
     QString fileName;
     QVector<ChunkInfo> chunks;
+
+    QJsonObject toJson() const {
+        QJsonObject obj;
+        obj["fileName"] = fileName;
+        QJsonArray chunksArray;
+        for (const auto& chunk : chunks) {
+            chunksArray.append(chunk.toJson());
+        }
+        obj["chunks"] = chunksArray;
+        return obj;
+    }
+
+    static FileMetadata fromJson(const QJsonObject& obj) {
+        FileMetadata meta;
+        meta.fileName = obj["fileName"].toString();
+        QJsonArray chunksArray = obj["chunks"].toArray();
+        for (const auto& chunkVal : chunksArray) {
+            meta.chunks.append(ChunkInfo::fromJson(chunkVal.toObject()));
+        }
+        return meta;
+    }
 };
 
 class MasterServer : public QTcpServer {
     Q_OBJECT
 public:
     explicit MasterServer(QObject* parent = nullptr);
+    ~MasterServer() override;
     bool startListening(const QHostAddress& address, quint16 port);
+
+    // Static method to access the instance for signal handling
+    static MasterServer* instance() { return s_instance; }
 
 private slots:
     void onNewConnection();
@@ -63,6 +126,10 @@ private:
 
     void buildBinaryTree();
     void computeDFS(int node);
+
+    void saveLog();
+    static MasterServer* s_instance; // Static instance for signal handler
+    static void handleSigInt(int sig);
 };
 
 #endif // MASTERSERVER_H
