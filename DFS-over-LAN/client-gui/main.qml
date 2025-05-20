@@ -56,8 +56,9 @@ Window {
             id: uploadProgressBar
             Layout.fillWidth: true
             visible: false
+            from: 0
+            to: 1
             value: 0
-            maximumValue: 1
         }
 
         Label {
@@ -69,8 +70,9 @@ Window {
             id: downloadProgressBar
             Layout.fillWidth: true
             visible: false
+            from: 0
+            to: 1
             value: 0
-            maximumValue: 1
         }
 
         ScrollView {
@@ -125,13 +127,13 @@ Window {
 
         function onUploadProgress(current, total) {
             uploadProgressBar.value = current
-            uploadProgressBar.maximumValue = total
+            uploadProgressBar.to = total
             uploadProgressBar.visible = true
         }
 
         function onDownloadProgress(current, total) {
             downloadProgressBar.value = current
-            downloadProgressBar.maximumValue = total
+            downloadProgressBar.to = total
             downloadProgressBar.visible = true
         }
 
@@ -143,7 +145,7 @@ Window {
         }
 
         function onDownloadFinished(fileId, filePath, fileSize) {
-            textArea.append("Download finished: " + fileId + " to " + filePath + " (" + fileSize + " bytes)" + "\n")
+            textArea.append("Download finished: " + fileId + " to " + filePath + " (" + fileSize + " bytes)\n")
             downloadProgressBar.visible = false
             textArea.forceActiveFocus()
             textArea.positionViewAtEnd()
