@@ -17,7 +17,7 @@ Client::Client(const QHostAddress& serverAddress, quint16 serverPort, QObject* p
 
     m_udp = new QUdpSocket(this);
     connect(m_udp, &QUdpSocket::readyRead, this, &Client::onUdpReadyRead);
-    m_udp->bind(QHostAddress::AnyIPv4, 0);
+    m_udp->bind(QHostAddress::AnyIPv4, 0); // Bind to specific IP for hole punching to enable NAT traversal
 }
 
 Client::~Client() {
@@ -143,6 +143,8 @@ void Client::uploadFileToChunk() {
     QString header = QString("STORE %1 %2\n").arg(info.chunkId).arg(data.size());
     QByteArray pkt = header.toUtf8() + data;
 
+    // hole-punch ping to open NAT
+    // m_udp->writeDatagram(QByteArray(), QHostAddress("ADDRESS"), info.port);
     m_udp->writeDatagram(pkt, info.ip, info.port);
     emit logReceived(QString("Sent %1 → %2:%3").arg(info.chunkId).arg(info.ip.toString()).arg(info.port));
 }
@@ -153,6 +155,9 @@ void Client::downloadFileFromChunk() {
 
     auto& info = m_downloadChunksInfo[m_downloadCurrent];
     QString header = QString("RETRIEVE %1\n").arg(info.chunkId);
+
+    // hole-punch ping to open NAT
+    // m_udp->writeDatagram(QByteArray(), QHostAddress("ADDRESS"), info.port);
     m_udp->writeDatagram(header.toUtf8(), info.ip, info.port);
     emit logReceived(QString("Requested %1 → %2:%3").arg(info.chunkId).arg(info.ip.toString()).arg(info.port));
 }

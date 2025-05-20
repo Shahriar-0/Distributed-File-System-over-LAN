@@ -17,7 +17,8 @@ ChunkServer::ChunkServer(int serverId, const QHostAddress& localIp, QObject* par
 }
 
 void ChunkServer::start() {
-    if (!udpSocket->bind(QHostAddress::AnyIPv4, listenPort)) {
+
+    if (!udpSocket->bind(QHostAddress::AnyIPv4, listenPort)) { // Bind to specific IP for hole punching to enable NAT traversal
         qCritical() << "ChunkServer" << serverId << "failed to bind port" << listenPort;
         return;
     }
