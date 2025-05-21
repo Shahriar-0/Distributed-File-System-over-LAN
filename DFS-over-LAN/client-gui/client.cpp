@@ -6,6 +6,14 @@
 #include <QFileInfo>
 #include <QTextStream>
 
+#include "schifra_galois_field.hpp"
+#include "schifra_galois_field_polynomial.hpp"
+#include "schifra_sequential_root_generator_polynomial_creator.hpp"
+#include "schifra_reed_solomon_encoder.hpp"
+#include "schifra_reed_solomon_decoder.hpp"
+#include "schifra_reed_solomon_block.hpp"
+#include "schifra_error_processes.hpp"
+
 Client::Client(const QHostAddress& serverAddress, quint16 serverPort, QObject* parent)
     : QObject(parent), m_masterIp(serverAddress), m_masterPort(serverPort) {
     m_tcp = new QTcpSocket(this);

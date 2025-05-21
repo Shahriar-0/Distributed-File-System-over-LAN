@@ -12,6 +12,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Network)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Network)
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/schifra)
+
 add_executable(chunk_server
     main.cpp
     chunkServer.h
@@ -19,9 +21,9 @@ add_executable(chunk_server
 )
 
 target_link_libraries(chunk_server Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network)
+
 include(GNUInstallDirs)
 install(TARGETS chunk_server
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
-

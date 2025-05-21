@@ -7,6 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 6.2 COMPONENTS Quick Network REQUIRED)
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/schifra)
+
+
 qt_add_executable(appclient-gui
     main.cpp
 )
