@@ -6,13 +6,13 @@
 #include <QFileInfo>
 #include <QTextStream>
 
+#include "schifra_error_processes.hpp"
 #include "schifra_galois_field.hpp"
 #include "schifra_galois_field_polynomial.hpp"
-#include "schifra_sequential_root_generator_polynomial_creator.hpp"
-#include "schifra_reed_solomon_encoder.hpp"
-#include "schifra_reed_solomon_decoder.hpp"
 #include "schifra_reed_solomon_block.hpp"
-#include "schifra_error_processes.hpp"
+#include "schifra_reed_solomon_decoder.hpp"
+#include "schifra_reed_solomon_encoder.hpp"
+#include "schifra_sequential_root_generator_polynomial_creator.hpp"
 
 Client::Client(const QHostAddress& serverAddress, quint16 serverPort, QObject* parent)
     : QObject(parent), m_masterIp(serverAddress), m_masterPort(serverPort) {
@@ -26,11 +26,28 @@ Client::Client(const QHostAddress& serverAddress, quint16 serverPort, QObject* p
     m_udp = new QUdpSocket(this);
     connect(m_udp, &QUdpSocket::readyRead, this, &Client::onUdpReadyRead);
     m_udp->bind(QHostAddress::AnyIPv4, 0); // Bind to specific IP for hole punching to enable NAT traversal
+
+    field = new schifra::galois::field(FIELD_DESCRIPTOR,
+                                       schifra::galois::primitive_polynomial_size06,
+                                       schifra::galois::primitive_polynomial06);
+    generator_polynomial = new schifra::galois::field_polynomial(*field);
+    if (!schifra::make_sequential_root_generator_polynomial(*field,
+                                                            GENERATOR_POLYNOMIAL_INDEX,
+                                                            GENERATOR_POLYNOMIAL_ROOT_COUNT,
+                                                            *generator_polynomial)) {
+        qCritical() << "Failed to create sequential root generator!";
+    }
+    encoder = new schifra::reed_solomon::encoder<CODE_LENGTH, FEC_LENGTH, DATA_LENGTH>(*field, *generator_polynomial);
+    decoder = new schifra::reed_solomon::decoder<CODE_LENGTH, FEC_LENGTH, DATA_LENGTH>(*field, GENERATOR_POLYNOMIAL_INDEX);
 }
 
 Client::~Client() {
     m_tcp->deleteLater();
     m_udp->deleteLater();
+    delete field;
+    delete generator_polynomial;
+    delete encoder;
+    delete decoder;
 }
 
 void Client::sendCommand(const QString& command, const QString& params) {
@@ -61,7 +78,6 @@ void Client::sendCommand(const QString& command, const QString& params) {
             return;
         }
     }
-
     else if (command == "LOOKUP_FILE") {
         m_downloadId = params.trimmed();
         m_downloadCurrent = 0;
@@ -144,10 +160,10 @@ void Client::uploadFileToChunk() {
     auto& info = m_uploadChunks[m_currentChunk];
     m_file.seek(qint64(m_currentChunk) * CHUNK_SIZE);
     QByteArray data = m_file.read(CHUNK_SIZE);
-    // TODO: encode data and add noise
+    QByteArray encodedData = encodeChunk(data);
 
-    QString header = QString("STORE %1 %2\n").arg(info.chunkId).arg(data.size());
-    QByteArray pkt = header.toUtf8() + data;
+    QString header = QString("STORE %1 %2\n").arg(info.chunkId).arg(encodedData.size());
+    QByteArray pkt = header.toUtf8() + encodedData;
 
     // hole-punch ping to open NAT
     // m_udp->writeDatagram(QByteArray(), QHostAddress("ADDRESS"), info.port);
@@ -199,8 +215,11 @@ void Client::onUdpReadyRead() {
             QString cid = parts[1];
             bool corrupt = (parts[2] == "1");
             int len = parts[3].toInt();
-            QByteArray data = payload.left(len);
-            // TODO: decode data
+            QByteArray encodedData = payload.left(len);
+            bool decodeCorrupted = false;
+            QByteArray data = decodeChunk(encodedData, decodeCorrupted);
+            if (decodeCorrupted)
+                corrupt = true;
             m_outFile.write(data);
             emit chunkDataReceived(cid, data, corrupt);
             emit downloadProgress(m_downloadCurrent + 1, m_downloadChunks);
@@ -219,4 +238,50 @@ void Client::onUdpReadyRead() {
 QString Client::parentDirectory() {
     QFileInfo fi(__FILE__);
     return fi.absolutePath().left(fi.absolutePath().lastIndexOf('/'));
+}
+
+QByteArray Client::encodeChunk(const QByteArray& data) {
+    const int blockSize = DATA_LENGTH;
+    const int encodedBlockSize = CODE_LENGTH;
+    QByteArray encoded;
+
+    int numBlocks = (data.size() + blockSize - 1) / blockSize;
+    for (int i = 0; i < numBlocks; ++i) {
+        int start = i * blockSize;
+        int length = qMin(blockSize, data.size() - start);
+        QByteArray blockData = data.mid(start, length);
+        if (blockData.size() < blockSize)
+            blockData.append(QByteArray(blockSize - blockData.size(), 0x00));
+        schifra::reed_solomon::block<CODE_LENGTH, FEC_LENGTH> block;
+        if (!encoder->encode(blockData.constData(), block)) {
+            qWarning() << "Encoding failed for block" << i;
+            continue;
+        }
+        encoded.append(reinterpret_cast<const char*>(block.data), encodedBlockSize);
+    }
+    return encoded;
+}
+
+QByteArray Client::decodeChunk(const QByteArray& encodedData, bool& corrupted) {
+    const int encodedBlockSize = CODE_LENGTH;
+    const int dataBlockSize = DATA_LENGTH;
+    QByteArray decoded;
+    corrupted = false;
+
+    int numBlocks = encodedData.size() / encodedBlockSize;
+    for (int i = 0; i < numBlocks; ++i) {
+        int start = i * encodedBlockSize;
+        QByteArray blockData = encodedData.mid(start, encodedBlockSize);
+        schifra::reed_solomon::block<CODE_LENGTH, FEC_LENGTH> block;
+        std::memcpy(block.data, blockData.constData(), encodedBlockSize);
+        if (!decoder->decode(block)) {
+            qWarning() << "Decoding failed for block" << i;
+            corrupted = true;
+            continue;
+        }
+        decoded.append(reinterpret_cast<const char*>(block.data), dataBlockSize);
+    }
+    if (decoded.size() > CHUNK_SIZE)
+        decoded = decoded.left(CHUNK_SIZE);
+    return decoded;
 }

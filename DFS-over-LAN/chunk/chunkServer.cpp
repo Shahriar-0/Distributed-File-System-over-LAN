@@ -4,14 +4,6 @@
 #include <QDebug>
 #include <QRandomGenerator>
 
-#include "schifra_galois_field.hpp"
-#include "schifra_galois_field_polynomial.hpp"
-#include "schifra_sequential_root_generator_polynomial_creator.hpp"
-#include "schifra_reed_solomon_encoder.hpp"
-#include "schifra_reed_solomon_decoder.hpp"
-#include "schifra_reed_solomon_block.hpp"
-#include "schifra_error_processes.hpp"
-
 ChunkServer::ChunkServer(int serverId, const QHostAddress& localIp, QObject* parent)
     : QObject(parent), serverId(serverId), localIp(localIp) {
     listenPort = BASE_CHUNK_PORT + serverId;
@@ -25,7 +17,6 @@ ChunkServer::ChunkServer(int serverId, const QHostAddress& localIp, QObject* par
 }
 
 void ChunkServer::start() {
-
     if (!udpSocket->bind(QHostAddress::AnyIPv4, listenPort)) { // Bind to specific IP for hole punching to enable NAT traversal
         qCritical() << "ChunkServer" << serverId << "failed to bind port" << listenPort;
         return;
@@ -70,25 +61,19 @@ void ChunkServer::onReadyRead() {
 }
 
 void ChunkServer::processStore(const QString& chunkId, const QByteArray& data, QHostAddress sender, quint16 senderPort) {
-    // QByteArray noisy = applyNoiseToData(data, 0.01); // TODO: add noise
-
-    bool corrupted = false;
-    // QByteArray decoded = decodeData(noisy, corrupted);  // TODO: add noise
-    QByteArray decoded = decodeData(data, corrupted);
-
+    // Store the encoded data as is
     QString filePath = storageDir + "/" + chunkId + ".bin";
     QFile f(filePath);
     if (f.open(QIODevice::WriteOnly)) {
-        f.write(decoded);
+        f.write(data);
         f.close();
     }
     else
         qWarning() << "ChunkServer" << serverId << "failed to write chunk" << chunkId;
 
-    qInfo() << "ChunkServer" << serverId << "stored" << chunkId << (corrupted ? "(corrupted)" : "");
+    qInfo() << "ChunkServer" << serverId << "stored" << chunkId;
 
-    QString ack = QString("ACK %1 %2 %3 %4\n").arg(chunkId).arg(localIp.toString()).arg(listenPort).arg(corrupted ? 1 : 0);
-
+    QString ack = QString("ACK %1 %2 %3 0\n").arg(chunkId).arg(localIp.toString()).arg(listenPort);
     udpSocket->writeDatagram(ack.toUtf8(), sender, senderPort);
 }
 
@@ -101,41 +86,11 @@ void ChunkServer::processRetrieve(const QString& chunkId, QHostAddress sender, q
     }
     QByteArray data = f.readAll();
     f.close();
-    bool corrupted = false;
 
-    // should we encode here again? honestly don't know
-    QByteArray encoded = encodeData(data);
-
-    QString header = QString("DATA %1 %2 %3\n").arg(chunkId).arg(corrupted ? 1 : 0).arg(encoded.size());
-
-    QByteArray dg = header.toUtf8() + encoded;
+    // Send the encoded data as is
+    QString header = QString("DATA %1 0 %2\n").arg(chunkId).arg(data.size());
+    QByteArray dg = header.toUtf8() + data;
     udpSocket->writeDatagram(dg, sender, senderPort);
 
-    qInfo() << "ChunkServer" << serverId << "served" << chunkId << (corrupted ? "(corrupted)" : "");
-}
-
-// TODO: add noise
-// QByteArray ChunkServer::applyNoiseToData(const QByteArray& data, double prob) {
-//     QByteArray out = data;
-//     auto gen = QRandomGenerator::global();
-//     for (int i = 0; i < out.size(); ++i) {
-//         char byte = out[i];
-//         for (int b = 0; b < 8; ++b) {
-//             if (gen->generateDouble() < prob)
-//                 byte ^= (1 << b);
-//         }
-//         out[i] = byte;
-//     }
-//     return out;
-// }
-
-// TODO: dummy functions - to be implemented ishalla (nmkh)
-QByteArray ChunkServer::decodeData(const QByteArray& data, bool& corrupted) {
-    corrupted = false;
-    return data;
-}
-
-// TODO
-QByteArray ChunkServer::encodeData(const QByteArray& data) {
-    return data;
+    qInfo() << "ChunkServer" << serverId << "served" << chunkId;
 }
