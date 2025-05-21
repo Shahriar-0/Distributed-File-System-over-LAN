@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QTextStream>
+#include <QRandomGenerator>
 
 #include "schifra_error_processes.hpp"
 #include "schifra_galois_field.hpp"
@@ -168,6 +169,12 @@ void Client::uploadFileToChunk() {
     // hole-punch ping to open NAT
     // m_udp->writeDatagram(QByteArray(), QHostAddress("ADDRESS"), info.port);
     m_udp->writeDatagram(pkt, info.ip, info.port);
+
+    // TODO: noise
+    // double noiseRate = 0.001; // Define or pass as parameter
+    // QByteArray noisyPkt = addNoise(pkt, noiseRate);
+    // m_udp->writeDatagram(noisyPkt, info.ip, info.port);
+
     emit logReceived(QString("Sent %1 → %2:%3").arg(info.chunkId).arg(info.ip.toString()).arg(info.port));
 }
 
@@ -284,4 +291,17 @@ QByteArray Client::decodeChunk(const QByteArray& encodedData, bool& corrupted) {
     if (decoded.size() > CHUNK_SIZE)
         decoded = decoded.left(CHUNK_SIZE);
     return decoded;
+}
+
+QByteArray addNoise(const QByteArray& data, double noiseRate) {
+    QByteArray noisyData = data;
+
+    QRandomGenerator* rand = QRandomGenerator::global();
+
+    for (int i = 0; i < noisyData.size(); ++i)
+        for (int bit = 0; bit < 8; ++bit)
+            if (rand->generateDouble() < noiseRate)
+                noisyData[i] ^= (1 << bit);
+
+    return noisyData;
 }
