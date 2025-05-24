@@ -7,32 +7,25 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 6.2 COMPONENTS Quick Network REQUIRED)
 
-set(COMMON_SOURCES
-    ../common/EncodingUtils.cpp
-)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/schifra)
 
-set(COMMON_HEADERS
-    ../common/EncodingUtils.h
-)
 
 qt_add_executable(appclient-gui
     main.cpp
-    ${COMMON_SOURCES}
 )
-
-target_include_directories(appclient-gui PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../common)
 
 qt_add_qml_module(appclient-gui
     URI client-gui
     VERSION 1.0
     QML_FILES main.qml
-    SOURCES
-        client.h
-        client.cpp
-        ${COMMON_HEADERS}
+    SOURCES client.h client.cpp
 )
 
+# Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
+# If you are developing for iOS or macOS you should consider setting an
+# explicit, fixed bundle identifier manually though.
 set_target_properties(appclient-gui PROPERTIES
+#    MACOSX_BUNDLE_GUI_IDENTIFIER com.example.appclient-gui
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
@@ -46,5 +39,4 @@ target_link_libraries(appclient-gui
 include(GNUInstallDirs)
 install(TARGETS appclient-gui
     BUNDLE DESTINATION .
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

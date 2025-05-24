@@ -8,6 +8,19 @@
 #include <QUdpSocket>
 #include <QVector>
 
+namespace schifra {
+namespace galois {
+    class field;
+    class field_polynomial;
+} // namespace galois
+namespace reed_solomon {
+    template <std::size_t code_length, std::size_t fec_length, std::size_t data_length>
+    class encoder;
+    template <std::size_t code_length, std::size_t fec_length, std::size_t data_length>
+    class decoder;
+} // namespace reed_solomon
+} // namespace schifra
+
 struct ChunkServerInfo {
     QString chunkId;
     QHostAddress ip;
@@ -49,7 +62,10 @@ private:
     void downloadFileFromChunk();
 
     static QString parentDirectory();
-    void getChunkInfos(const QString& pkt, QVector<ChunkServerInfo>& infos, int idx, int numChunks);
+    void getChunkInfos(QString pkt, QVector<ChunkServerInfo>& infos, int idx, int numChunks);
+
+    QByteArray encodeChunk(const QByteArray& data);
+    QByteArray decodeChunk(const QByteArray& encodedData, bool& corrupted);
 
     QTcpSocket* m_tcp;
     QUdpSocket* m_udp;
@@ -62,6 +78,7 @@ private:
     qint64 m_fileSize = 0;
     int m_numChunks = 0;
     int m_currentChunk = 0;
+    qint64 m_downloadFileSize = 0;
     QVector<ChunkServerInfo> m_uploadChunks;
 
     QFile m_outFile;
@@ -73,6 +90,17 @@ private:
     static constexpr int CHUNK_SIZE = 8 * 1024;
     static constexpr int CHUNK_SERVER_BASE_PORT = 5000;
 
+    static constexpr std::size_t FIELD_DESCRIPTOR = 8;
+    static constexpr std::size_t GENERATOR_POLYNOMIAL_INDEX = 120;
+    static constexpr std::size_t GENERATOR_POLYNOMIAL_ROOT_COUNT = 32;
+    static constexpr std::size_t CODE_LENGTH = 255;
+    static constexpr std::size_t FEC_LENGTH = 32;
+    static constexpr std::size_t DATA_LENGTH = CODE_LENGTH - FEC_LENGTH;
+
+    schifra::galois::field* field;
+    schifra::galois::field_polynomial* generator_polynomial;
+    const schifra::reed_solomon::encoder<CODE_LENGTH, FEC_LENGTH, DATA_LENGTH>* encoder;
+    const schifra::reed_solomon::decoder<CODE_LENGTH, FEC_LENGTH, DATA_LENGTH>* decoder;
 };
 
 #endif // CLIENT_H
