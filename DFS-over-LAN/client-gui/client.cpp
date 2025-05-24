@@ -223,10 +223,5 @@ void Client::onUdpReadyRead() {
 
 QString Client::parentDirectory() {
     QFileInfo fi(__FILE__);
-
-    // QFileInfo fi(__FILE__);
-    // return fi.absolutePath().left(fi.absolutePath().lastIndexOf('/'));
-
-    fi.absolutePath().left(fi.absolutePath().lastIndexOf('/'));
-    return QStringLiteral("C:/Tempp");
+    return fi.absolutePath().left(fi.absolutePath().lastIndexOf('/'));
 }
