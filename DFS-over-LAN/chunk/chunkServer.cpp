@@ -1,8 +1,10 @@
 #include "chunkServer.h"
+#include "encodingUtils.h"
 
-#include <QDataStream>
 #include <QDebug>
 #include <QRandomGenerator>
+
+static constexpr int CHUNK_SIZE = 8 * 1024;
 
 ChunkServer::ChunkServer(int serverId, const QHostAddress& localIp, QObject* parent)
     : QObject(parent), serverId(serverId), localIp(localIp) {
@@ -13,15 +15,13 @@ ChunkServer::ChunkServer(int serverId, const QHostAddress& localIp, QObject* par
     if (!dir.exists())
         dir.mkpath(".");
 
-    udpSocket = new QUdpSocket(this);
-}
+    udpSocket = new QUdpSocket(this);}
 
 void ChunkServer::start() {
-    if (!udpSocket->bind(QHostAddress::AnyIPv4, listenPort)) { // Bind to specific IP for hole punching to enable NAT traversal
+    if (!udpSocket->bind(QHostAddress::AnyIPv4, listenPort)) {
         qCritical() << "ChunkServer" << serverId << "failed to bind port" << listenPort;
         return;
     }
-
     connect(udpSocket, &QUdpSocket::readyRead, this, &ChunkServer::onReadyRead);
     qInfo() << "ChunkServer" << serverId << "listening on UDP port" << listenPort;
 }
@@ -53,28 +53,44 @@ void ChunkServer::onReadyRead() {
             }
             processStore(cid, payload.left(len), sender, senderPort);
         }
-        else if (parts[0] == "RETRIEVE" && parts.size() == 2)
+        else if (parts[0] == "RETRIEVE" && parts.size() == 2) {
             processRetrieve(parts[1], sender, senderPort);
-        else
+        }
+        else {
             qWarning() << "ChunkServer" << serverId << "unknown command:" << header;
+        }
     }
 }
 
-void ChunkServer::processStore(const QString& chunkId, const QByteArray& data, QHostAddress sender, quint16 senderPort) {
-    // Store the encoded data as is
+void ChunkServer::processStore(const QString& chunkId, const QByteArray& encodedData,
+                               QHostAddress sender, quint16 senderPort) {
+    // QByteArray noisyData = addNoise(encodedData, NOISE_RATE);
+    QByteArray noisyData = encodedData;
+    bool corrupted = false;
+    // QByteArray decodedData = decodeChunk(noisyData, corrupted);
+    QByteArray decodedData = noisyData;
+
+
+
+    if (decodedData.isEmpty()) {
+        corrupted = true;
+    }
+
     QString filePath = storageDir + "/" + chunkId + ".bin";
     QFile f(filePath);
     if (f.open(QIODevice::WriteOnly)) {
-        f.write(data);
+        f.write(decodedData);
         f.close();
-    }
-    else
+    } else {
         qWarning() << "ChunkServer" << serverId << "failed to write chunk" << chunkId;
+    }
 
-    qInfo() << "ChunkServer" << serverId << "stored" << chunkId;
-
-    QString ack = QString("ACK %1 %2 %3 0\n").arg(chunkId).arg(localIp.toString()).arg(listenPort);
+    QString ack = QString("ACK %1 %2 %3 %4\n")
+                      .arg(chunkId).arg(localIp.toString())
+                      .arg(listenPort).arg(corrupted ? 1 : 0);
     udpSocket->writeDatagram(ack.toUtf8(), sender, senderPort);
+
+    qInfo() << "ChunkServer" << serverId << "stored chunk" << chunkId << (corrupted ? "(corrupted)" : "");
 }
 
 void ChunkServer::processRetrieve(const QString& chunkId, QHostAddress sender, quint16 senderPort) {
@@ -84,13 +100,17 @@ void ChunkServer::processRetrieve(const QString& chunkId, QHostAddress sender, q
         qWarning() << "ChunkServer" << serverId << "cannot open chunk" << chunkId;
         return;
     }
-    QByteArray data = f.readAll();
+    QByteArray decodedData = f.readAll();
     f.close();
 
-    // Send the encoded data as is
-    QString header = QString("DATA %1 0 %2\n").arg(chunkId).arg(data.size());
-    QByteArray dg = header.toUtf8() + data;
+    // QByteArray encodedData = encodeChunk(decodedData);
+    QByteArray encodedData = decodedData;
+
+
+    QString header = QString("DATA %1 0 %2\n").arg(chunkId).arg(encodedData.size());
+    QByteArray dg = header.toUtf8() + encodedData;
     udpSocket->writeDatagram(dg, sender, senderPort);
 
-    qInfo() << "ChunkServer" << serverId << "served" << chunkId;
+    qInfo() << "ChunkServer" << serverId << "served chunk" << chunkId;
 }
+

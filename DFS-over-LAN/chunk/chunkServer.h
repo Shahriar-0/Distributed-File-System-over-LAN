@@ -1,12 +1,12 @@
 #ifndef CHUNKSERVER_H
 #define CHUNKSERVER_H
 
-#include <QByteArray>
-#include <QDir>
-#include <QFile>
-#include <QHostAddress>
 #include <QObject>
 #include <QUdpSocket>
+#include <QDir>
+#include <QFile>
+#include <QByteArray>
+#include <QHostAddress>
 
 static constexpr quint16 BASE_CHUNK_PORT = 5000;
 
@@ -20,18 +20,19 @@ private slots:
     void onReadyRead();
 
 private:
+    void processStore(const QString& chunkId, const QByteArray& encodedData,
+                      QHostAddress sender, quint16 senderPort);
+    void processRetrieve(const QString& chunkId, QHostAddress sender, quint16 senderPort);
+    
+    QByteArray addNoise(const QByteArray& data, double noiseRate);
+
     int serverId;
     quint16 listenPort;
     QHostAddress localIp;
     QUdpSocket* udpSocket;
     QString storageDir;
-
-    // QByteArray applyNoiseToData(const QByteArray& data, double prob);  // TODO: add noise
-    QByteArray encodeData(const QByteArray& data);
-    QByteArray decodeData(const QByteArray& data, bool& corrupted);
-
-    void processStore(const QString& chunkId, const QByteArray& data, QHostAddress sender, quint16 senderPort);
-    void processRetrieve(const QString& chunkId, QHostAddress sender, quint16 senderPort);
+    
+    static constexpr double NOISE_RATE = 0.01;
 };
 
 #endif // CHUNKSERVER_H
